@@ -1,7 +1,28 @@
 import face_recognition
 import cv2
 import numpy as np
+import requests
+import os
 
+
+for filename in os.listdir('Photos/'):
+    os.remove('Photos/'+filename)
+
+import firebase_admin
+from firebase_admin import credentials
+from firebase_admin import storage
+
+cred = credentials.Certificate("adminsdk.json")
+
+firebase_admin.initialize_app(cred, {
+    'storageBucket': 'facial-recognition-c01ca.appspot.com'
+})
+
+bucket = storage.bucket()
+assert bucket.exists()
+blobs = bucket.list_blobs()
+for blobber in blobs:
+    blobber.download_to_filename(blobber.name)
 # This is a demo of running face recognition on live video from your webcam. It's a little more complicated than the
 # other example, but it includes some basic performance tweaks to make things run a lot faster:
 #   1. Process each video frame at 1/4 resolution (though still display it at full resolution)
@@ -14,6 +35,8 @@ import numpy as np
 # Get a reference to webcam #0 (the default one)
 video_capture = cv2.VideoCapture(0)
 
+
+
 # Load a sample picture and learn how to recognize it.
 ruarai_image = face_recognition.load_image_file("ruarai.jpg")
 ruarai_face_encoding = face_recognition.face_encodings(ruarai_image)[0]
@@ -24,14 +47,23 @@ known_face_encodings = [
     ruarai_face_encoding,
 ]
 known_face_names = [
-    "Ruarai"
+    "Ruarai O'Tighearnaigh"
 ]
-
+for filename in os.listdir('Photos/'):
+    file_image = face_recognition.load_image_file('Photos/'+filename)
+    known_face_encodings.append(face_recognition.face_encodings(file_image)[0])
+    known_face_names.append(filename)
+    
+print(len(known_face_encodings), known_face_names)
 # Initialize some variables
 face_locations = []
 face_encodings = []
 face_names = []
 process_this_frame = True
+
+#set up post
+
+url = 'http://localhost:3002/user/addUser'
 
 while True:
     # Grab a single frame of video
@@ -59,6 +91,10 @@ while True:
             if True in matches:
                 first_match_index = matches.index(True)
                 name = known_face_names[first_match_index]
+                payload = {'name': name}
+                r = requests.post(url, data=payload)
+                known_face_names.pop(first_match_index)
+                known_face_encodings.pop(first_match_index)
 
             # Or instead, use the known face with the smallest distance to the new face
             #face_distances = face_recognition.face_distance(known_face_encodings, face_encoding)
